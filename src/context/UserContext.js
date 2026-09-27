@@ -1,78 +1,114 @@
-import React from 'react';
-import axios from 'axios';
-import { decodeJwtPayload } from '../utils/jwt';
+import React from "react";
+import { showSnackbar } from "../components/Snackbar";
 
-import { mockUser } from './mock';
+const API_URL = "https://portfolio-api.workwithsasan.workers.dev";
 
-//config
-import config from '../../src/config';
-import { showSnackbar } from '../components/Snackbar';
+const UserStateContext = React.createContext();
+const UserDispatchContext = React.createContext();
 
-let UserStateContext = React.createContext();
-let UserDispatchContext = React.createContext();
+const initialState = {
+  authenticated: false,
+  isFetching: false,
+  errorMessage: "",
+  currentUser: null,
+  loadingInit: true,
+};
 
 function userReducer(state, action) {
   switch (action.type) {
-    case 'LOGIN_SUCCESS':
+    case "LOGIN_SUCCESS":
       return {
         ...state,
         ...action.payload,
+        authenticated: true,
+        isFetching: false,
+        loadingInit: false,
+        errorMessage: "",
       };
-    case 'REGISTER_REQUEST':
-    case 'RESET_REQUEST':
-    case 'PASSWORD_RESET_EMAIL_REQUEST':
+
+    case "AUTH_INIT_SUCCESS":
+      return {
+        ...state,
+        authenticated: true,
+        currentUser: action.payload.currentUser,
+        loadingInit: false,
+        isFetching: false,
+        errorMessage: "",
+      };
+
+    case "AUTH_INIT_ERROR":
+      return {
+        ...state,
+        authenticated: false,
+        currentUser: null,
+        loadingInit: false,
+      };
+
+    case "AUTH_FAILURE":
+      return {
+        ...state,
+        authenticated: false,
+        isFetching: false,
+        errorMessage: action.payload,
+        loadingInit: false,
+      };
+
+    case "REGISTER_REQUEST":
+    case "RESET_REQUEST":
+    case "PASSWORD_RESET_EMAIL_REQUEST":
       return {
         ...state,
         isFetching: true,
-        errorMessage: '',
+        errorMessage: "",
       };
-    case 'SIGN_OUT_SUCCESS':
-      return { ...state };
-    case 'AUTH_INIT_ERROR':
-      return Object.assign({}, state, {
+
+    case "REGISTER_SUCCESS":
+    case "RESET_SUCCESS":
+    case "PASSWORD_RESET_EMAIL_SUCCESS":
+      return {
+        ...state,
+        isFetching: false,
+        errorMessage: "",
+      };
+
+    case "SIGN_OUT_SUCCESS":
+      return {
+        ...state,
+        authenticated: false,
         currentUser: null,
+        isFetching: false,
         loadingInit: false,
-      });
-    case 'REGISTER_SUCCESS':
-    case 'RESET_SUCCESS':
-    case 'PASSWORD_RESET_EMAIL_SUCCESS':
-      return Object.assign({}, state, {
-        isFetching: false,
-        errorMessage: '',
-      });
-    case 'AUTH_FAILURE':
-      return Object.assign({}, state, {
-        isFetching: false,
-        errorMessage: action.payload,
-      });
-    default: {
-      throw new Error(`Unhandled action type: ${action.type}`);
-    }
+        errorMessage: "",
+      };
+
+    default:
+      return state;
   }
 }
 
 function UserProvider({ children }) {
-  let [state, dispatch] = React.useReducer(userReducer, {
-    isAuthenticated: () => {
-      const token = localStorage.getItem('token');
-      if (config.isBackend && token) {
-        const date = new Date().getTime() / 1000;
-        const data = decodeJwtPayload(token);
-        if (!data) return false;
-        return date < data.exp;
-      } else if (token) {
-        return true;
-      }
-      return false;
-    },
-    isFetching: false,
-    errorMessage: '',
-    currentUser: null,
-    loadingInit: true,
-  });
+  const [state, dispatch] = React.useReducer(
+    userReducer,
+    initialState
+  );
+
+  // Check existing admin session when app starts
+  React.useEffect(() => {
+    doInit()(dispatch);
+  }, []);
+
+  const value = React.useMemo(
+    () => ({
+      ...state,
+
+      // Keep the same API that App.js currently expects
+      isAuthenticated: () => state.authenticated,
+    }),
+    [state]
+  );
 
   return (
-    <UserStateContext.Provider value={state}>
+    <UserStateContext.Provider value={value}>
       <UserDispatchContext.Provider value={dispatch}>
         {children}
       </UserDispatchContext.Provider>
@@ -81,181 +117,168 @@ function UserProvider({ children }) {
 }
 
 function useUserState() {
-  let context = React.useContext(UserStateContext);
+  const context = React.useContext(UserStateContext);
+
   if (context === undefined) {
-    throw new Error('useUserState must be used within a UserProvider');
+    throw new Error(
+      "useUserState must be used within a UserProvider"
+    );
   }
+
   return context;
 }
 
 function useUserDispatch() {
-  let context = React.useContext(UserDispatchContext);
+  const context = React.useContext(
+    UserDispatchContext
+  );
+
   if (context === undefined) {
-    throw new Error('useUserDispatch must be used within a UserProvider');
+    throw new Error(
+      "useUserDispatch must be used within a UserProvider"
+    );
   }
+
   return context;
 }
 
-export { UserProvider, useUserState, useUserDispatch, loginUser, signOut };
+export {
+  UserProvider,
+  useUserState,
+  useUserDispatch,
+  loginUser,
+  signOut,
+};
 
-// ###########################################################
-
-function loginUser(
+// --------------------------------
+// Login
+// --------------------------------
+async function loginUser(
   dispatch,
-  login,
+  username,
   password,
   setIsLoading,
-  setError,
-  social = '',
+  setError
 ) {
-  setError(false);
+  setError("");
   setIsLoading(true);
-  // We check if app runs with backend mode
-  if (!config.isBackend) {
-    setError(null);
-    doInit()(dispatch);
-    setIsLoading(false);
-    receiveToken('token', dispatch);
-  } else {
-    if (social) {
-      window.location.href =
-        config.baseURLApi +
-        '/auth/signin/' +
-        social +
-        '?app=' +
-        config.redirectUrl;
-    } else if (login.length > 0 && password.length > 0) {
-      axios
-        .post('/auth/signin/local', { email: login, password })
-        .then((res) => {
-          const token = res.data;
-          setError(null);
-          setIsLoading(false);
-          receiveToken(token, dispatch);
-          doInit()(dispatch);
-        })
-        .catch(() => {
-          setError(true);
-          setIsLoading(false);
-        });
-    } else {
-      dispatch({ type: 'LOGIN_FAILURE' });
+
+  try {
+    const response = await fetch(`${API_URL}/api/admin/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify({
+        username,
+        password,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Invalid username or password.");
     }
+
+    await doInit()(dispatch);
+
+    setError("");
+
+    return true;
+  } catch (error) {
+    console.error(error);
+
+    setError(
+      error.message || "Unable to connect to the authentication server."
+    );
+
+    return false;
+  } finally {
+    setIsLoading(false);
   }
 }
 
-export function sendPasswordResetEmail(email) {
-  return (dispatch) => {
-    if (!config.isBackend) {
-      return;
-    } else {
-      dispatch({
-        type: 'PASSWORD_RESET_EMAIL_REQUEST',
-      });
-      axios
-        .post('/auth/send-password-reset-email', { email })
-        .then(() => {
-          dispatch({
-            type: 'PASSWORD_RESET_EMAIL_SUCCESS',
-          });
-          showSnackbar({
-            type: 'success',
-            message: 'Email with resetting instructions has been sent',
-          });
-        })
-        .catch((err) => {
-          dispatch(authError(err.response.data));
+// --------------------------------
+// Check current session
+// --------------------------------
+export function doInit() {
+  return async (dispatch) => {
+    try {
+      const response = await fetch(
+        `${API_URL}/api/admin/me`,
+        {
+          method: "GET",
+          credentials: "include",
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok || !data.authenticated) {
+        dispatch({
+          type: "AUTH_INIT_ERROR",
         });
+
+        return;
+      }
+
+      dispatch({
+        type: "AUTH_INIT_SUCCESS",
+        payload: {
+          currentUser: {
+            username: "admin",
+          },
+        },
+      });
+    } catch (error) {
+      console.error(error);
+
+      dispatch({
+        type: "AUTH_INIT_ERROR",
+        payload: error,
+      });
     }
   };
 }
 
-function signOut(dispatch, navigate) {
-  localStorage.removeItem('token');
-  localStorage.removeItem('user');
-  localStorage.removeItem('user_id');
-  document.cookie = 'token=;expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-  axios.defaults.headers.common['Authorization'] = '';
-  dispatch({ type: 'SIGN_OUT_SUCCESS' });
-  navigate('/login');
+// --------------------------------
+// Logout
+// --------------------------------
+async function signOut(dispatch, navigate) {
+  try {
+    await fetch(
+      `${API_URL}/api/admin/logout`,
+      {
+        method: "POST",
+        credentials: "include",
+      }
+    );
+  } catch (error) {
+    console.error(error);
+  } finally {
+    dispatch({
+      type: "SIGN_OUT_SUCCESS",
+    });
+
+    navigate("/login");
+  }
 }
 
-export function receiveToken(token, dispatch) {
-  let user;
+// --------------------------------
+// Compatibility helpers
+// --------------------------------
 
-  // We check if app runs with backend mode
-  if (config.isBackend) {
-    user = decodeJwtPayload(token)?.user || {};
-  } else {
-    user = {
-      email: config.auth.email,
-    };
-  }
-
-  if (user && typeof user === 'object') {
-    delete user.id;
-  }
-  localStorage.setItem('token', token);
-  localStorage.setItem('user', JSON.stringify(user));
-  localStorage.setItem('theme', 'default');
-  axios.defaults.headers.common['Authorization'] = 'Bearer ' + token;
-  dispatch({ type: 'LOGIN_SUCCESS' });
-}
-
-async function findMe() {
-  if (config.isBackend) {
-    const response = await axios.get('/auth/me');
-    return response.data;
-  } else {
-    return mockUser;
-  }
+export function receiveToken() {
+  // Not used anymore.
+  // Authentication is handled by HttpOnly Cookie.
 }
 
 export function authError(payload) {
   return {
-    type: 'AUTH_FAILURE',
+    type: "AUTH_FAILURE",
     payload,
-  };
-}
-
-export function doInit() {
-  return async (dispatch) => {
-    let currentUser = null;
-    if (!config.isBackend) {
-      currentUser = mockUser;
-
-      dispatch({
-        type: 'LOGIN_SUCCESS',
-        payload: {
-          currentUser,
-        },
-      });
-    } else {
-      try {
-        let token = localStorage.getItem('token');
-        if (token) {
-          currentUser = await findMe();
-        }
-        if (currentUser?.id) {
-          sessionStorage.setItem('user_id', currentUser.id);
-        } else {
-          sessionStorage.removeItem('user_id');
-        }
-        dispatch({
-          type: 'LOGIN_SUCCESS',
-          payload: {
-            currentUser,
-          },
-        });
-      } catch (error) {
-        console.log(error);
-
-        dispatch({
-          type: 'AUTH_INIT_ERROR',
-          payload: error,
-        });
-      }
-    }
   };
 }
 
@@ -263,87 +286,29 @@ export function registerUser(
   dispatch,
   login,
   password,
-  navigate,
+  navigate
 ) {
   return () => {
-    if (!config.isBackend) {
-      navigate('/login');
-    } else {
-      dispatch({
-        type: 'REGISTER_REQUEST',
-      });
-      if (login.length > 0 && password.length > 0) {
-        axios
-          .post('/auth/signup', { email: login, password })
-          .then(() => {
-            dispatch({
-              type: 'REGISTER_SUCCESS',
-            });
-            showSnackbar({
-              type: 'success',
-              message:
-                "You've been registered successfully. Please check your email for verification link",
-            });
-            navigate('/login');
-          })
-          .catch((err) => {
-            dispatch(authError(err.response.data));
-          });
-      } else {
-        dispatch(authError('Something was wrong. Try again'));
-      }
-    }
+    navigate("/login");
   };
+}
+
+export function sendPasswordResetEmail() {
+  showSnackbar({
+    type: "info",
+    message:
+      "Password reset is managed from the admin backend.",
+  });
 }
 
 export function verifyEmail(token, navigate) {
-  return () => {
-    if (!config.isBackend) {
-      navigate('/login');
-    } else {
-      axios
-        .put('/auth/verify-email', { token })
-        .then((verified) => {
-          if (verified) {
-            showSnackbar({
-              type: 'success',
-              message: 'Your email was verified',
-            });
-          }
-        })
-        .catch((err) => {
-          showSnackbar({ type: 'error', message: err.response });
-        })
-        .finally(() => {
-          navigate('/login');
-        });
-    }
-  };
+  navigate("/login");
 }
 
-export function resetPassword(token, password, navigate) {
-  return (dispatch) => {
-    if (!config.isBackend) {
-      navigate('/login');
-    } else {
-      dispatch({
-        type: 'RESET_REQUEST',
-      });
-      axios
-        .put('/auth/password-reset', { token, password })
-        .then(() => {
-          dispatch({
-            type: 'RESET_SUCCESS',
-          });
-          showSnackbar({
-            type: 'success',
-            message: 'Password has been updated',
-          });
-          navigate('/login');
-        })
-        .catch((err) => {
-          dispatch(authError(err.response.data));
-        });
-    }
-  };
+export function resetPassword(
+  token,
+  password,
+  navigate
+) {
+  navigate("/login");
 }

@@ -24,9 +24,30 @@ import { setNavigator } from '../router/navigation';
 
 export default function App() {
   // global
-  let { isAuthenticated } = useUserState();
-  const isAuth = isAuthenticated();
-  const routerBase = import.meta.env.BASE_URL || '/';
+  let {
+  isAuthenticated,
+  loadingInit,
+} = useUserState();
+
+const routerBase =
+  import.meta.env.BASE_URL || "/";
+
+if (loadingInit) {
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      Loading...
+    </div>
+  );
+}
+
+const isAuth = isAuthenticated();
 
   return (
     <>

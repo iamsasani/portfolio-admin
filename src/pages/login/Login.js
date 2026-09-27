@@ -1,433 +1,145 @@
-import React, { useState, useEffect } from 'react';
-import {
-  Grid,
-  CircularProgress,
-  Tabs,
-  Tab,
-  Grow,
-  TextField as Input,
-  Typography,
-} from '@mui/material';
-import classnames from 'classnames';
-import { useLocation, useNavigate } from 'react-router-dom';
+import React from "react";
+import { Grid, CircularProgress, TextField, Typography } from "@mui/material";
+import { useLocation, useNavigate } from "react-router-dom";
 
-// styles
-import useStyles from './styles';
+import { useUserDispatch } from "../../context/UserContext";
+import { loginUser } from "../../context/UserContext";
 
-// logo
-import logo from './logo.svg';
-import google from '../../images/google.svg';
 
-// context
-import {
-  useUserDispatch,
-  loginUser,
-  registerUser,
-  sendPasswordResetEmail,
-} from '../../context/UserContext';
-import { receiveToken, doInit } from '../../context/UserContext';
+import Widget from "../../components/Widget";
+import { Button } from "components/Wrappers/Wrappers";
 
-//components
-import { Button } from '../../components/Wrappers';
-import Widget from '../../components/Widget';
-import config from '../../config';
+export default function Login() {
+  const navigate = useNavigate();
+  const location = useLocation();
 
-const getGreeting = () => {
-  const d = new Date();
-  if (d.getHours() >= 4 && d.getHours() <= 12) {
-    return 'Good Morning';
-  } else if (d.getHours() >= 13 && d.getHours() <= 16) {
-    return 'Good Day';
-  } else if (d.getHours() >= 17 && d.getHours() <= 23) {
-    return 'Good Evening';
-  } else {
-    return 'Good Night';
+  const userDispatch = useUserDispatch();
+
+  const [username, setUsername] = React.useState("");
+  const [password, setPassword] = React.useState("");
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [error, setError] = React.useState("");
+
+ const handleLogin = async (event) => {
+  event.preventDefault();
+
+  setError("");
+
+  if (!username || !password) {
+    setError("Please enter username and password.");
+    return;
+  }
+
+  const success = await loginUser(
+    userDispatch,
+    username,
+    password,
+    setIsLoading,
+    setError
+  );
+
+  if (success) {
+    const from = location.state?.from?.pathname || "/app";
+    navigate(from, { replace: true });
   }
 };
-
-function Login() {
-  let classes = useStyles();
-  const location = useLocation();
-  const navigate = useNavigate();
-  const tab = new URLSearchParams(location.search).get('tab');
-
-  // global
-  let userDispatch = useUserDispatch();
-
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const token = params.get('token');
-    if (token) {
-      receiveToken(token, userDispatch);
-      doInit()(userDispatch);
-    }
-  }, []);  
-
-  // local
-  let [isLoading, setIsLoading] = useState(false);
-  let [error, setError] = useState(null);
-  const parsedTab = Number(tab);
-  let [activeTabId, setActiveTabId] = useState(Number.isFinite(parsedTab) ? parsedTab : 0);
-  let [nameValue, setNameValue] = useState('');
-  let [loginValue, setLoginValue] = useState('admin@flatlogic.com');
-  let [passwordValue, setPasswordValue] = useState('password');
-  let [forgotEmail, setForgotEmail] = useState('');
-  let [isForgot, setIsForgot] = useState(false);
-
-  let isLoginFormValid = () => {
-    return loginValue.length !== 0 && passwordValue.length !== 0;
-  };
-
-  let loginOnEnterKey = (event) => {
-    if (event.key === 'Enter' && isLoginFormValid()) {
-      loginUser(
-        userDispatch,
-        loginValue,
-        passwordValue,
-        setIsLoading,
-        setError,
-      );
-    }
-  };
-
   return (
-    <Grid container className={classes.container}>
-      <div className={classes.logotypeContainer}>
-        <img src={logo} alt='logo' className={classes.logotypeImage} />
-        <Typography className={classes.logotypeText}>
-          React Material Admin Full
-        </Typography>
-      </div>
-      <div
-        className={
-          !isForgot ? classes.formContainer : classes.customFormContainer
-        }
-      >
-        <div className={classes.form}>
-          {isForgot ? (
-            <div>
-              <Input
-                id='password'
-                InputProps={{
-                  classes: {
-                    underline: classes.InputUnderline,
-                    input: classes.Input,
-                  },
-                }}
-                value={forgotEmail}
-                onChange={(e) => setForgotEmail(e.target.value)}
-                margin='normal'
-                placeholder='Email'
-                type='Email'
-                fullWidth
-              />
-              <div className={classes.formButtons}>
-                {isLoading ? (
-                  <CircularProgress size={26} className={classes.loginLoader} />
-                ) : (
-                  <Button
-                    disabled={forgotEmail.length === 0}
-                    onClick={() =>
-                      sendPasswordResetEmail(forgotEmail)(userDispatch)
-                    }
-                    variant='contained'
-                    color='primary'
-                    size='large'
-                  >
-                    Send
-                  </Button>
-                )}
-                <Button
-                  color='primary'
-                  size='large'
-                  onClick={() => setIsForgot(!isForgot)}
-                  className={classes.forgetButton}
-                >
-                  Back to login
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <>
-              <Tabs
-                value={activeTabId}
-                onChange={(e, id) => setActiveTabId(id)}
-                indicatorColor='primary'
-                textColor='primary'
-                centered
-              >
-                <Tab label='Login' classes={{ root: classes.tab }} />
-                <Tab label='New User' classes={{ root: classes.tab }} />
-              </Tabs>
-              {activeTabId === 0 && (
-                <React.Fragment>
-                  {config.isBackend ? (
-                    <Widget
-                      disableWidgetMenu
-                      inheritHeight
-                      style={{ marginTop: 32 }}
-                    >
-                      <Typography
-                        variant={'body2'}
-                        component="div"
-                        style={{ textAlign: 'center' }}
-                      >
-                        This is a real app with Node.js backend - use
-                        <Typography variant={'body2'} weight={'bold'}>
-                          "admin@flatlogic.com / password"
-                        </Typography>{' '}
-                        to login!
-                      </Typography>
-                    </Widget>
-                  ) : null}
-                  <Typography variant='h1' className={classes.greeting}>
-                    {getGreeting()}, User
-                  </Typography>
-                  <Button
-                    size='large'
-                    className={classes.googleButton}
-                    onClick={() =>
-                      loginUser(
-                        userDispatch,
-                        loginValue,
-                        passwordValue,
-                        setIsLoading,
-                        setError,
-                        'google',
-                      )
-                    }
-                  >
-                    <img
-                      src={google}
-                      alt='google'
-                      className={classes.googleIcon}
-                    />
-                    &nbsp;Sign in with Google
-                  </Button>
-                  <div className={classes.formDividerContainer}>
-                    <div className={classes.formDivider} />
-                    <Typography className={classes.formDividerWord}>
-                      or
-                    </Typography>
-                    <div className={classes.formDivider} />
-                  </div>
-                  <Grow
-                    in={error}
-                    style={
-                      !error ? { display: 'none' } : { display: 'inline-block' }
-                    }
-                  >
-                    <Typography className={classes.errorMessage}>
-                      Something is wrong with your login or password :(
-                    </Typography>
-                  </Grow>
-                  <Input
-                    id='email'
-                    InputProps={{
-                      classes: {
-                        underline: classes.InputUnderline,
-                        input: classes.Input,
-                      },
-                    }}
-                    value={loginValue}
-                    onChange={(e) => setLoginValue(e.target.value)}
-                    margin='normal'
-                    placeholder='Email Adress'
-                    type='email'
-                    fullWidth
-                    onKeyDown={(e) => loginOnEnterKey(e)}
-                  />
-                  <Input
-                    id='password'
-                    InputProps={{
-                      classes: {
-                        underline: classes.InputUnderline,
-                        input: classes.Input,
-                      },
-                    }}
-                    value={passwordValue}
-                    onChange={(e) => setPasswordValue(e.target.value)}
-                    margin='normal'
-                    placeholder='Password'
-                    type='password'
-                    fullWidth
-                    onKeyDown={(e) => loginOnEnterKey(e)}
-                  />
-                  <div className={classes.formButtons}>
-                    {isLoading ? (
-                      <CircularProgress
-                        size={26}
-                        className={classes.loginLoader}
-                      />
-                    ) : (
-                      <Button
-                        disabled={!isLoginFormValid()}
-                        onClick={() =>
-                          loginUser(
-                            userDispatch,
-                            loginValue,
-                            passwordValue,
-                            setIsLoading,
-                            setError,
-                          )
-                        }
-                        variant='contained'
-                        color='primary'
-                        size='large'
-                      >
-                        Login
-                      </Button>
-                    )}
-                    <Button
-                      color='primary'
-                      size='large'
-                      onClick={() => setIsForgot(!isForgot)}
-                      className={classes.forgetButton}
-                    >
-                      Forgot Password?
-                    </Button>
-                  </div>
-                </React.Fragment>
-              )}
-              {activeTabId === 1 && (
-                <React.Fragment>
-                  <Typography variant='h1' className={classes.greeting}>
-                    Welcome!
-                  </Typography>
-                  <Typography variant='h2' className={classes.subGreeting}>
-                    Create your account
-                  </Typography>
-                  <Grow in={error}>
-                    <Typography className={classes.errorMessage}>
-                      Something is wrong with your login or password :(
-                    </Typography>
-                  </Grow>
-                  <Input
-                    id='name'
-                    InputProps={{
-                      classes: {
-                        underline: classes.InputUnderline,
-                        input: classes.Input,
-                      },
-                    }}
-                    value={nameValue}
-                    onChange={(e) => setNameValue(e.target.value)}
-                    margin='normal'
-                    placeholder='Full Name'
-                    type='email'
-                    fullWidth
-                  />
-                  <Input
-                    id='email'
-                    InputProps={{
-                      classes: {
-                        underline: classes.InputUnderline,
-                        input: classes.Input,
-                      },
-                    }}
-                    value={loginValue}
-                    onChange={(e) => setLoginValue(e.target.value)}
-                    margin='normal'
-                    placeholder='Email Adress'
-                    type='email'
-                    fullWidth
-                  />
-                  <Input
-                    id='password'
-                    InputProps={{
-                      classes: {
-                        underline: classes.InputUnderline,
-                        input: classes.Input,
-                      },
-                    }}
-                    value={passwordValue}
-                    onChange={(e) => setPasswordValue(e.target.value)}
-                    margin='normal'
-                    placeholder='Password'
-                    type='password'
-                    fullWidth
-                  />
-                  <div className={classes.creatingButtonContainer}>
-                    {isLoading ? (
-                      <CircularProgress size={26} />
-                    ) : (
-                      <Button
-                        onClick={() =>
-                          registerUser(
-                            userDispatch,
-                            loginValue,
-                            passwordValue,
-                            navigate,
-                            setIsLoading,
-                            setError,
-                          )()
-                        }
-                        disabled={
-                          loginValue.length === 0 ||
-                          passwordValue.length === 0 ||
-                          nameValue.length === 0
-                        }
-                        size='large'
-                        variant='contained'
-                        color='primary'
-                        fullWidth
-                        className={classes.createAccountButton}
-                      >
-                        Create your account
-                      </Button>
-                    )}
-                  </div>
-                  <div className={classes.formDividerContainer}>
-                    <div className={classes.formDivider} />
-                    <Typography className={classes.formDividerWord}>
-                      or
-                    </Typography>
-                    <div className={classes.formDivider} />
-                  </div>
-                  <Button
-                    size='large'
-                    className={classnames(
-                      classes.googleButton,
-                      classes.googleButtonCreating,
-                    )}
-                    onClick={() =>
-                      loginUser(
-                        userDispatch,
-                        loginValue,
-                        passwordValue,
-                        setIsLoading,
-                        setError,
-                        'google',
-                      )
-                    }
-                  >
-                    <img
-                      src={google}
-                      alt='google'
-                      className={classes.googleIcon}
-                    />
-                    &nbsp;Sign in with Google
-                  </Button>
-                </React.Fragment>
-              )}
-            </>
-          )}
-        </div>
-        <Typography color='primary' className={classes.copyright}>
-          2014-{new Date().getFullYear()}{' '}
-          <a
-            style={{ textDecoration: 'none', color: 'inherit' }}
-            href='https://flatlogic.com'
-            rel='noopener noreferrer'
-            target='_blank'
+    <Grid
+      container
+      style={{
+        minHeight: "100vh",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "#f7f7f7",
+        padding: "20px",
+      }}
+    >
+      <Grid item xs={12} sm={8} md={5} lg={4}>
+        <Widget
+          style={{
+            margin: 0,
+            padding: "30px",
+          }}
+        >
+          <Typography
+            variant="h4"
+            align="center"
+            style={{
+              fontWeight: 700,
+              marginBottom: "8px",
+            }}
           >
-            Flatlogic
-          </a>
-          , LLC. All rights reserved.
-        </Typography>
-      </div>
+            Admin Panel
+          </Typography>
+
+          <Typography
+            variant="body2"
+            align="center"
+            color="textSecondary"
+            style={{
+              marginBottom: "30px",
+            }}
+          >
+            Sign in to manage your portfolio
+          </Typography>
+
+          <form onSubmit={handleLogin}>
+            <TextField
+              fullWidth
+              label="Username"
+              variant="outlined"
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
+              margin="normal"
+              autoComplete="username"
+              disabled={isLoading}
+            />
+
+            <TextField
+              fullWidth
+              label="Password"
+              type="password"
+              variant="outlined"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              margin="normal"
+              autoComplete="current-password"
+              disabled={isLoading}
+            />
+
+            {error && (
+              <Typography
+                variant="body2"
+                style={{
+                  color: "#d32f2f",
+                  marginTop: "15px",
+                  marginBottom: "10px",
+                }}
+              >
+                {error}
+              </Typography>
+            )}
+
+            <Button
+              type="submit"
+              variant="contained"
+              color="primary"
+              fullWidth
+              disabled={isLoading}
+              style={{
+                marginTop: "20px",
+                height: "48px",
+              }}
+            >
+              {isLoading ? (
+                <CircularProgress size={24} color="inherit" />
+              ) : (
+                "Sign In"
+              )}
+            </Button>
+          </form>
+        </Widget>
+      </Grid>
     </Grid>
   );
 }
-
-export default Login;
