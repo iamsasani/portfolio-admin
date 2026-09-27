@@ -12,14 +12,19 @@ import {
   Chip,
   Button,
   Stack,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from '@mui/material';
-
 const API_URL = 'https://portfolio-api.workwithsasan.workers.dev';
 
 function Meetings() {
   const [meetings, setMeetings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [confirmAction, setConfirmAction] = useState(null);
 
   const fetchMeetings = async () => {
     try {
@@ -79,6 +84,14 @@ function Meetings() {
       console.error(error);
       alert(error.message || 'Failed to update meeting.');
     }
+  };
+
+  const handleConfirmStatus = async () => {
+    if (!confirmAction) return;
+
+    await updateMeetingStatus(confirmAction.id, confirmAction.status);
+
+    setConfirmAction(null);
   };
 
   const getStatusColor = (status) => {
@@ -183,7 +196,13 @@ function Meetings() {
                               variant='outlined'
                               color='error'
                               onClick={() =>
-                                updateMeetingStatus(meeting.id, 'cancelled')
+                                setConfirmAction({
+                                  id: meeting.id,
+                                  status: 'cancelled',
+                                  title: 'Cancel Meeting',
+                                  message:
+                                    'Are you sure you want to cancel this meeting?',
+                                })
                               }
                             >
                               Cancel
@@ -194,7 +213,13 @@ function Meetings() {
                               variant='outlined'
                               color='success'
                               onClick={() =>
-                                updateMeetingStatus(meeting.id, 'completed')
+                                setConfirmAction({
+                                  id: meeting.id,
+                                  status: 'completed',
+                                  title: 'Complete Meeting',
+                                  message:
+                                    'Are you sure you want to mark this meeting as completed?',
+                                })
                               }
                             >
                               Complete
@@ -222,6 +247,30 @@ function Meetings() {
           </TableContainer>
         )}
       </Paper>
+      <Dialog
+        open={Boolean(confirmAction)}
+        onClose={() => setConfirmAction(null)}
+      >
+        <DialogTitle>{confirmAction?.title}</DialogTitle>
+
+        <DialogContent>
+          <DialogContentText>{confirmAction?.message}</DialogContentText>
+        </DialogContent>
+
+        <DialogActions>
+          <Button onClick={() => setConfirmAction(null)} color='inherit'>
+            Cancel
+          </Button>
+
+          <Button
+            onClick={handleConfirmStatus}
+            variant='contained'
+            color={confirmAction?.status === 'cancelled' ? 'error' : 'success'}
+          >
+            Confirm
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
