@@ -7,7 +7,7 @@ import GithubIcon from '@mui/icons-material/GitHub';
 import FacebookIcon from '@mui/icons-material/Facebook';
 import TwitterIcon from '@mui/icons-material/Twitter';
 
-import { Fab, IconButton } from '@mui/material';
+import { Fab, IconButton, Typography } from '@mui/material';
 // styles
 import useStyles from './styles';
 
@@ -220,49 +220,30 @@ function Layout() {
         <Footer>
           <div>
             <Link
-              color={'primary'}
-              href={'https://flatlogic.com/'}
-              target={'_blank'}
+              color='primary'
+              href='https://personal-portfolio.workwithsasan.workers.dev/'
+              target='_blank'
+              rel='noopener noreferrer'
               className={classes.link}
             >
-              Flatlogic
+              Portfolio
             </Link>
+
             <Link
-              color={'primary'}
-              href={'https://flatlogic.com/about'}
-              target={'_blank'}
+              color='primary'
+              href='https://github.com/iamsasani'
+              target='_blank'
+              rel='noopener noreferrer'
               className={classes.link}
             >
-              About Us
-            </Link>
-            <Link
-              color={'primary'}
-              href={'https://flatlogic.com/blog'}
-              target={'_blank'}
-              className={classes.link}
-            >
-              Blog
+              GitHub
             </Link>
           </div>
+
           <div>
-            <Link href={'https://www.facebook.com/flatlogic'} target={'_blank'}>
-              <IconButton aria-label='facebook'>
-                <FacebookIcon style={{ color: '#6E6E6E99' }} />
-              </IconButton>
-            </Link>
-            <Link href={'https://twitter.com/flatlogic'} target={'_blank'}>
-              <IconButton aria-label='twitter'>
-                <TwitterIcon style={{ color: '#6E6E6E99' }} />
-              </IconButton>
-            </Link>
-            <Link href={'https://github.com/flatlogic'} target={'_blank'}>
-              <IconButton
-                aria-label='github'
-                style={{ padding: '12px 0 12px 12px' }}
-              >
-                <GithubIcon style={{ color: '#6E6E6E99' }} />
-              </IconButton>
-            </Link>
+            <Typography variant='body2' color='textSecondary'>
+              © {new Date().getFullYear()} Mohammad Mehdi Sasanian
+            </Typography>
           </div>
         </Footer>
       </div>
